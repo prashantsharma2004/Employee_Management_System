@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Employee Panel</title>
+  <link rel="stylesheet" href="style.css">
+<link rel="stylesheet"
+href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+</head>
+<body>
+
+  <div class="container">
+<div class="navbar">
+  <h2><i class="fa-solid fa-user"></i> Employee Dashboard</h2>
+  <button class="logout" onclick="logout()">Logout</button>
+</div>
+
+<div class="stats">
+<div class="card">
+<h4><i class="fa-solid fa-clock"></i> Total Hours</h4>
+<p id="totalHours">0</p>
+</div>
+
+<div class="card">
+<h4><i class="fa-solid fa-calendar"></i> My Leaves</h4>
+<p id="leaveCount">0</p>
+</div>
+
+</div>
+<div class="profile-card">
+  <i class="fa-solid fa-circle-user profile-icon"></i>
+  <div>
+    <p id="empName">Employee</p>
+    <p id="empRole">Role</p>
+  </div>
+</div>
+
+
+<!-- ================= LEAVE ================= -->
+<div class="section">
+<h3>Apply Leave</h3>
+
+<input type="date" id="from">
+<input type="date" id="to">
+<textarea id="reason" placeholder="Reason"></textarea>
+<br>
+
+<div class="btn-group">
+  
+<button onclick="applyLeave()">Apply</button>
+<button onclick="loadLeaves()">Load My Leaves</button>
+</div>
+<p id="msg"></p>
+
+
+<ul id="list"></ul>
+
+</div>
+
+<!-- ================= PRODUCTIVITY ================= -->
+
+<h3>Add Productivity</h3>
+
+<input type="date" id="workDate"><br><br>
+
+<input type="text" id="task" placeholder="Task"><br><br>
+
+<input type="number" id="hours" placeholder="Hours Worked"><br><br>
+
+<button onclick="addProductivity()">Submit Work</button>
+
+<p id="pmsg"></p>
+
+<hr>
+
+<h3>My Productivity Logs</h3>
+
+<button onclick="loadProductivity()">Load My Work</button>
+<br>
+<input type="date" id="filterDate">
+<br>
+<button onclick="filterWork()">Filter Work</button>
+
+
+<table border="1">
+<tr>
+<th>Date</th>
+<th>Task</th>
+<th>Hours</th>
+</tr>
+<tbody id="plist"></tbody>
+</table>
+
+<hr>
+
+<script>
+
+const token = localStorage.getItem("accessToken");
+const userId = Number(localStorage.getItem("userId"));
+const name = localStorage.getItem("name");
+const role = localStorage.getItem("role");
+
+if(!token){
+  window.location.href="login.html";
+}
+
+//set name and role
+document.getElementById("empName").innerText =
+  name ? name : "Employee";
+
+document.getElementById("empRole").innerText =
+  role ? role : "EMPLOYEE";
+
+
+
+
+
+
+/* ================= LEAVE ================= */
+
+// APPLY LEAVE
+async function applyLeave(){
+
+  const from = document.getElementById("from").value;
+  const to = document.getElementById("to").value;
+  const reason = document.getElementById("reason").value;
+
+  const res = await fetch("http://localhost:8080/api/leave/apply",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":"Bearer "+token
+    },
+    body:JSON.stringify({
+      fromDate:from,
+      toDate:to,
+      reason:reason
+    })
+  });
+
+  if(res.ok){
+    document.getElementById("msg").innerText="Leave Applied ";
+   // CLEAR FIELDS
+    document.getElementById("from").value="";
+    document.getElementById("to").value="";
+    document.getElementById("reason").value="";
+    loadLeaves();
+  }else{
+    document.getElementById("msg").innerText="Failed to apply ";
+  }
+}
+
+
+// LOAD MY LEAVES
+async function loadLeaves(){
+
+  const list = document.getElementById("list");
+
+if(list.innerHTML !== ""){
+  list.innerHTML="";
+  document.getElementById("leaveCount").innerText = "0";
+
+  return;
+}
+
+  const res = await fetch(
+    `http://localhost:8080/api/leave/my`,
+    {
+      headers:{
+        "Authorization":"Bearer "+token
+      }
+    }
+  );
+
+  const data = await res.json();
+
+  document.getElementById("leaveCount").innerText = data.length;
+
+
+  data.forEach(l=>{
+    const li = document.createElement("li");
+     let color="black";
+
+  if(l.status==="APPROVED") color="green";
+  else if(l.status==="REJECTED") color="red";
+  else color="orange";
+
+  li.innerHTML =
+  `${l.fromDate} to ${l.toDate} →
+  <span style="color:${color}">${l.status}</span>`;
+    list.appendChild(li);
+  });
+  
+}
+
+
+/* ================= PRODUCTIVITY ================= */
+
+// ADD PRODUCTIVITY
+async function addProductivity(){
+
+  const workDate = document.getElementById("workDate").value;
+  const task = document.getElementById("task").value;
+  const hours = document.getElementById("hours").value;
+
+  const res = await fetch(
+    "http://localhost:8080/api/productivity/add",
+    {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "Authorization":"Bearer "+token
+      },
+      body:JSON.stringify({
+        workDate:workDate,
+        task:task,
+        hours:hours
+      })
+    }
+  );
+
+  if(res.ok){
+    document.getElementById("pmsg").innerText="Work Added ";
+   // CLEAR FIELDS
+    document.getElementById("workDate").value="";
+    document.getElementById("task").value="";
+    document.getElementById("hours").value="";
+
+    // reload logs
+    document.getElementById("plist").innerHTML="";
+    loadProductivity();
+
+  }else{
+    document.getElementById("pmsg").innerText="Failed ";
+  }
+}
+
+
+// LOAD PRODUCTIVITY
+async function loadProductivity(){
+
+  const lis = document.getElementById("plist");
+
+  // TOGGLE LOGIC
+  if(lis.innerHTML !== ""){
+    lis.innerHTML="";
+    return;
+  }
+
+  const res = await fetch(
+    `http://localhost:8080/api/productivity/user/${userId}`,
+    {
+      headers:{
+        "Authorization":"Bearer "+token
+      }
+    }
+  );
+
+  const data = await res.json();
+
+  let total=0;
+
+  const list = document.getElementById("plist");
+  list.innerHTML="";
+
+  data.forEach(p=>{
+    const tr = document.createElement("tr");
+
+    tr.innerHTML =
+      `<td>${p.workDate}</td>
+       <td>${p.task}</td>
+       <td>${p.hours}</td>`;
+    list.appendChild(tr);
+    total+=p.hours;
+  });
+  document.getElementById("totalHours")
+  .innerText = total ;
+}
+
+
+/*===========================work filter============================*/
+
+async function filterWork(){
+
+  let total=0;
+
+  const date = document.getElementById("filterDate").value;
+
+  const res = await fetch(
+    `http://localhost:8080/api/productivity/user/${userId}/date?date=${date}`,
+    {
+      headers:{
+        "Authorization":"Bearer "+token
+      }
+    }
+  );
+
+  const data = await res.json();
+
+  const list = document.getElementById("plist");
+  list.innerHTML="";
+
+  data.forEach(p=>{
+   const tr = document.createElement("tr");
+
+  tr.innerHTML =
+  `<td>${p.workDate}</td>
+   <td>${p.task}</td>
+   <td>${p.hours}</td>`;
+
+  list.appendChild(tr);
+
+  total+=p.hours;
+  });
+
+   document.getElementById("totalHours")
+  .innerText = "Total Hours Worked : " + total + " hrs";
+}
+
+
+/* ================= LOGOUT ================= */
+
+function logout(){
+  localStorage.clear();
+  window.location.href="login.html";
+}
+
+</script>
+</div>  
+</body>
+</html>

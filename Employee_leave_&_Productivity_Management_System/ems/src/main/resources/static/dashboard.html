@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+</head>
+<body>
+
+<h2>Welcome Dashboard</h2>
+
+<button onclick="logout()">Logout</button>
+
+<script>
+
+window.onload = function () {
+
+    const role = localStorage.getItem("role");
+
+    console.log("ROLE =", role);
+
+    if (!role) {
+        alert("Please login again");
+        window.location.href = "login.html";
+        return;
+    }
+
+    if (role === "ADMIN") {
+        window.location.href = "admin.html";
+    }
+    else if (role === "EMPLOYEE") {
+        window.location.href = "employee.html";
+    }
+    else {
+        alert("Invalid Role: " + role);
+        localStorage.clear();
+        window.location.href = "login.html";
+    }
+};
+
+
+function logout() {
+    localStorage.clear();
+    window.location.href = "login.html";
+}
+
+</script>
+
+</body>
+</html>

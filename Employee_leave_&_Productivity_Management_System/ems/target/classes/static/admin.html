@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Panel</title>
+ <link rel="stylesheet" href="style.css">
+ <link rel="stylesheet"
+href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"> 
+
+  
+</head>
+
+<body>
+<div class="container">
+  <div class="navbar">
+  <h2><i class="fa-solid fa-user-tie"></i> Manager Dashboard</h2>
+  <button class="logout" onclick="logout()">Logout</button>
+</div>
+
+<div class="profile-card">
+  <i class="fa-solid fa-circle-user profile-icon"></i>
+
+  <div>
+    <p id="adminName">Admin</p>
+    <p id="adminRole">ADMIN</p>
+  </div>
+</div>
+<div class="stats">
+
+<div class="card">
+<h4><i class="fa-solid fa-calendar-check"></i> Total Leaves</h4>
+<p id="leaveTotal">0</p>
+</div>
+
+<div class="card">
+<h4><i class="fa-solid fa-briefcase"></i> Work Records</h4>
+<p id="workTotal">0</p>
+</div>
+
+</div>
+
+<h2 id="welcome"></h2>
+
+<button onclick="loadLeaves()">Load All Leaves</button>
+
+<br><br>
+
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>User ID No.</th>
+      <th>From</th>
+      <th>To</th>
+      <th>Reason</th>
+      <th>Status</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+
+  <tbody id="tbody">
+  </tbody>
+</table>
+<div style="margin-top:20px;text-align:center;">
+<button onclick="prevPage()">Previous</button>
+<span id="pageInfo"></span>
+<button onclick="nextPage()">Next</button>
+</div>
+<br><br>
+<button onclick="loadWorkSummary()">Load Work Summary</button>
+<br><br>
+<table border="1">
+<tr>
+<th>Employee</th>
+<th>Total Hours</th>
+</tr>
+<tbody id="summary"></tbody>
+</table>
+
+<br><br>
+
+
+
+<script>
+  const name = localStorage.getItem("name") || "Admin";
+const role = localStorage.getItem("role") || "ADMIN";
+
+document.getElementById("adminName").innerText = name;
+document.getElementById("adminRole").innerText = role;
+
+const token = localStorage.getItem("accessToken");
+
+if(!token || role!=="ADMIN"){
+  window.location.href="login.html";
+}
+let currentPage = 1;
+let pageSize = 5;
+let allLeaves = [];
+
+// LOAD ALL LEAVES
+async function loadLeaves(){
+
+  const tbody = document.getElementById("tbody");
+
+  // toggle
+  if(tbody.innerHTML !== ""){
+    tbody.innerHTML="";
+    document.getElementById("leaveTotal").innerText="0";
+    return;
+  }
+
+  const res = await fetch(
+    "http://localhost:8080/api/leave/all",
+    {
+      headers:{
+        "Authorization":"Bearer "+token
+      }
+    }
+  );
+
+  if(!res.ok){
+    alert("Unauthorized");
+    return;
+  }
+
+  const data = await res.json();
+
+  allLeaves = data; // store all leaves for pagination
+
+  document.getElementById("leaveTotal").innerText = data.length;
+
+  renderTable();
+}
+//pagination functions
+
+function renderTable(){
+
+  const tbody = document.getElementById("tbody");
+  tbody.innerHTML="";
+
+  const start = (currentPage-1)*pageSize;
+  const end = start + pageSize;
+
+  const pageData = allLeaves.slice(start,end);
+
+  pageData.forEach(l=>{
+
+    let statusClass="pending";
+
+    if(l.status==="APPROVED") statusClass="approved";
+    else if(l.status==="REJECTED") statusClass="rejected";
+
+    const tr = document.createElement("tr");
+
+    tr.innerHTML=`
+      <td>${l.id}</td>
+      <td>${l.userId}</td>
+      <td>${l.fromDate}</td>
+      <td>${l.toDate}</td>
+      <td>${l.reason}</td>
+
+      <td>
+        <span class="status ${statusClass}">
+        ${l.status}
+        </span>
+      </td>
+
+      <td>
+        <button class="approve"
+        onclick="update(${l.id},'APPROVED')">
+        Approve</button>
+
+        <button class="reject"
+        onclick="update(${l.id},'REJECTED')">
+        Reject</button>
+      </td>
+    `;
+
+    tbody.appendChild(tr);
+
+  });
+
+  document.getElementById("pageInfo").innerText =
+  `Page ${currentPage} / ${Math.ceil(allLeaves.length/pageSize)}`;
+}
+
+//shift pages
+function nextPage(){
+
+if(currentPage < Math.ceil(allLeaves.length/pageSize)){
+currentPage++;
+renderTable();
+}
+
+}
+
+function prevPage(){
+
+if(currentPage > 1){
+currentPage--;
+renderTable();
+}
+
+}
+
+
+// WORK SUMMARY
+async function loadWorkSummary(){
+
+  const table = document.getElementById("summary");
+
+  if(table.innerHTML !== ""){
+    table.innerHTML="";
+    document.getElementById("workTotal").innerText="0";
+    return;
+  }
+
+  const res = await fetch(
+    "http://localhost:8080/api/productivity/admin/summary",
+    {
+      headers:{
+        "Authorization":"Bearer "+token
+      }
+    }
+  );
+
+  const data = await res.json();
+
+  document.getElementById("workTotal").innerText = data.length;
+
+  data.forEach(row=>{
+
+    const tr = document.createElement("tr");
+
+    tr.innerHTML=
+      `<td>${row[0]}</td>
+       <td>${row[1]} hrs</td>`;
+
+    table.appendChild(tr);
+  });
+
+}
+
+function logout(){
+  localStorage.clear();
+  window.location.href="login.html";
+}
+</script>
+
+</div>
+</body>
+</html>
